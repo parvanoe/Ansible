@@ -1,0 +1,79 @@
+---
+- name: Setup Nextcloud with Docker on Web Servers
+  hosts: web_servers
+  become: yes
+  tasks:
+    - name: Install Docker
+      shell: |
+        curl -fsSL https://get.docker.com -o get-docker.sh
+        sudo sh get-docker.sh
+      args:
+        creates: /usr/bin/docker
+
+    - name: Create docker-nextcloud directory
+      ansible.builtin.file:
+        path: /root/docker-nextcloud
+        state: directory
+        mode: '0755'
+
+    - name: Create docker-compose.yml file
+      ansible.builtin.copy:
+        dest: /root/docker-nextcloud/docker-compose.yml
+        content: |
+          ---
+          services:
+            nextcloud:
+              image: lscr.io/linuxserver/nextcloud
+              container_name: nextcloud
+              environment:
+                - PUID=1000
+                - PGID=1000
+                - TZ=Europe/Sofia
+                - NEXTCLOUD_REDIS_HOST=redis
+                - NEXTCLOUD_REDIS_PORT=6379
+              volumes:
+                - /path/to/file:/config
+                - /path/to/file:/data
+              depends_on:
+                - mariadb
+                - redis
+              restart: unless-stopped
+
+            mariadb:
+              image: lscr.io/linuxserver/mariadb
+              container_name: mariadb
+              environment:
+                - PUID=1000
+                - PGID=1000
+                - MYSQL_ROOT_PASSWORD=password
+                - TZ=Europe/Sofia
+                - MYSQL_DATABASE=nextcloud
+                - MYSQL_USER=user
+                - MYSQL_PASSWORD=password
+              volumes:
+                - /path/to/file:/config
+                - /path/to/file:/var/lib/mysql
+              restart: unless-stopped
+
+            redis:
+              image: redis:alpine
+              container_name: redis
+              volumes:
+                - /path/to/file:/data
+              restart: always
+              command: redis-server --requirepass momo2709emil
+        mode: '0644'
+
+    - name: Start Nextcloud services with Docker Compose
+      shell: |
+        cd /root/docker-nextcloud && docker compose up -d
+      args:
+        chdir: /root/docker-nextcloud
+
+    - name: Check running Docker containers
+      shell: docker ps
+      register: docker_ps_output
+
+    - name: Display Docker running containers
+      debug:
+        var: docker_ps_output.stdout
