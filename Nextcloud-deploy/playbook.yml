@@ -10,6 +10,12 @@
       args:
         creates: /usr/bin/docker
 
+    - name: Ensure Docker service is started (Debian)
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: yes
+
     - name: Create docker-nextcloud directory
       ansible.builtin.file:
         path: /root/docker-nextcloud
